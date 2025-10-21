@@ -15,24 +15,23 @@ module apb_master(apb_interface apb_if);
 
 	
     task write(input logic [31:0] waddr, input logic [31:0] wdata); 
-        $display("[APB_MASTER] Write: %02h, data: %d", waddr, wdata);
+        $display("[APB_MASTER] Write request: addr=0x%08h, data=%0d", waddr, wdata);
         
 	@(posedge apb_if.PCLK iff !apb_if.PREADY);
-        apb_if.PSEL    = 1;   
-        apb_if.PENABLE = 0;  
-        apb_if.PWRITE  = 1;   
+        apb_if.PSEL    = 1'b1;   
+        apb_if.PENABLE = 1'b0;  
+        apb_if.PWRITE  = 1'b1;   
         apb_if.PADDR   = waddr; 
         apb_if.PWDATA  = wdata; 
 
         @(posedge apb_if.PCLK); 
         
-        apb_if.PENABLE = 1;   
+        apb_if.PENABLE = 1'b1;     
 
         @(posedge apb_if.PCLK iff apb_if.PREADY); 
         
-        apb_if.PSEL    = 0;   
-        apb_if.PENABLE = 0;   
-	@(posedge apb_if.PCLK);
+        apb_if.PSEL    = 1'b0;   
+        apb_if.PENABLE = 1'b0;    
         if(apb_if.PSLVERR) $display("[APB_MASTER] ERROR WRITE");
         else $display("[APB_MASTER] Write completed. \n"); 
 	
@@ -40,26 +39,28 @@ module apb_master(apb_interface apb_if);
 
     
     task read(input logic [31:0] raddr);
-	automatic logic [31:0] rdata = '0;
+	logic [31:0] rdata;
 	@(posedge apb_if.PCLK iff !apb_if.PREADY);
-        apb_if.PSEL    = 1;    
-        apb_if.PENABLE = 0;    
-        apb_if.PWRITE  = 0;  
+        apb_if.PSEL    = 1'b1;    
+        apb_if.PENABLE = 1'b0;    
+        apb_if.PWRITE  = 1'b0;  
         apb_if.PADDR   = raddr;
 	$display("[APB_MASTER] READ from addr: %2h", raddr);
         
         @(posedge apb_if.PCLK); 
-
-        apb_if.PENABLE = 1;   
+ 	apb_if.PENABLE = 1'b1;
+    
         @(posedge apb_if.PCLK iff apb_if.PREADY);
 	@(posedge apb_if.PCLK);
 
         rdata = apb_if.PRDATA; 
         $display("[APB_MASTER] READ: rdata = %d", rdata[31:0]);  
         
-        apb_if.PSEL    = 0;   
-        apb_if.PENABLE = 0;    
-        $display("[APB_MASTER] Read completed. \n");  
+        apb_if.PSEL    = 1'b0;   
+        apb_if.PENABLE = 1'b0;        
+	if(apb_if.PSLVERR) $display("[APB_MASTER] ERROR READ");
+        else $display("[APB_MASTER] Read completed. \n");  
+
     endtask 
    
  endmodule

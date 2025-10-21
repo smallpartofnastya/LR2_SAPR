@@ -1,51 +1,92 @@
 module apb_slave(apb_interface apb_if);
 
-    logic [7:0] memory [0:15]; 
-  
+    logic [31:0] operand1_reg;
+    logic [31:0] operand2_reg;
+    logic [1:0]  control_reg;
+    logic [31:0] result_reg;
+
+
+
     always_ff @(posedge apb_if.PCLK or negedge apb_if.PRESETn) begin
         if (!apb_if.PRESETn) begin
-            apb_if.PREADY <= 1'b0; 
+            apb_if.PREADY  <= 1'b0; 
             apb_if.PSLVERR <= 1'b0;
-	    foreach (memory[i]) memory[i] = 0;
-		
-        end
-	if (apb_if.PSEL && apb_if.PENABLE && apb_if.PWRITE && !apb_if.PREADY) begin
-	    	apb_if.PSLVERR <= 1'b0; 
+            operand1_reg   <= 32'b0;
+            operand2_reg   <= 32'b0;
+            control_reg    <= 2'b0;
+            result_reg     <= 32'b0;
+        end else begin
+            apb_if.PSLVERR <= 1'b0;
 
-		if(apb_if.PADDR!=0 && apb_if.PADDR!=4 && apb_if.PADDR!=8 && apb_if.PADDR!=12) begin
-			$display("[APB_SLAVE] ERROR: addr isn't in range");
-			apb_if.PSLVERR <= 1;
-		end
+            // WRITE operation
+            if (apb_if.PSEL && apb_if.PENABLE && apb_if.PWRITE && !apb_if.PREADY) begin
+                if (apb_if.PADDR!=32'h0 && apb_if.PADDR!=32'h4 &&
+                    apb_if.PADDR!=32'h8 && apb_if.PADDR!=32'hC) begin
+                    $display("[APB_SLAVE] ERROR: addr isn't in range");
+                    apb_if.PSLVERR <= 1'b1;
+                    apb_if.PREADY  <= 1'b1;
+                end else begin
+                    case (apb_if.PADDR)
+                        32'h0: begin
+                            operand1_reg <= apb_if.PWDATA;
+                            $display("[APB_SLAVE] Write operand1: %0d", apb_if.PWDATA);
+                        end
+                        32'h4: begin
+                            operand2_reg <= apb_if.PWDATA;
+                            $display("[APB_SLAVE] Write operand2: %0d", apb_if.PWDATA);
+                        end
+                        32'h8: begin
+                            control_reg <= apb_if.PWDATA[1:0];
+                            $display("[APB_SLAVE] Write control: 0x%0h", apb_if.PWDATA[1:0]);
+                        end
+                        32'hC: begin
+                            $display("[APB_SLAVE] ERROR: WRITE to read-only result register");
+                            apb_if.PSLVERR <= 1'b1;
+                        end
+                    endcase
 
-		memory[apb_if.PADDR][7:0] <= apb_if.PWDATA[7:0];
-		memory[apb_if.PADDR+1][7:0] <= apb_if.PWDATA[15:8];
-		memory[apb_if.PADDR+2][7:0] <= apb_if.PWDATA[23:16];
-		memory[apb_if.PADDR+3][7:0] <= apb_if.PWDATA[31:24];
+                    if (!apb_if.PSLVERR) begin
+                        case (control_reg)
+                            2'b01: result_reg <= operand1_reg & operand2_reg;
+                            2'b10: result_reg <= operand1_reg | operand2_reg;
+                            2'b11: result_reg <= operand1_reg ^ operand2_reg;
+                            default: result_reg <= 32'b0;
+                        endcase
+                    end
 
-		$display("[APB_SLAVE] Write: %02h, data: %d", apb_if.PADDR, apb_if.PWDATA);
-		apb_if.PREADY <= 1'b1;
+                    apb_if.PREADY <= 1'b1;
+                end // valid address
+            end // WRITE
 
-            end // PSEL && PENABLE && PWRITE
             
+            // READ operation
+            else if (apb_if.PSEL && apb_if.PENABLE && !apb_if.PWRITE && !apb_if.PREADY) begin
+		if (apb_if.PADDR!=32'h0 && apb_if.PADDR!=32'h4 &&
+                    apb_if.PADDR!=32'h8 && apb_if.PADDR!=32'hC) begin
+                    $display("[APB_SLAVE] ERROR: addr isn't in range");
+                    apb_if.PSLVERR <= 1'b1;
+                    apb_if.PREADY  <= 1'b1;
+                    apb_if.PRDATA  <= 32'hDEAD_BEEF;
+                end else begin
+                    case (apb_if.PADDR)
+                        32'h0: apb_if.PRDATA <= operand1_reg;
+                        32'h4: apb_if.PRDATA <= operand2_reg;
+                        32'h8: apb_if.PRDATA[1:0] <= control_reg;
+                        32'hC: apb_if.PRDATA <= result_reg;
+                    endcase
 
-            if (apb_if.PSEL && apb_if.PENABLE && !apb_if.PWRITE && !apb_if.PREADY) begin
-		apb_if.PSLVERR <= 1'b0; 
+                    if (!apb_if.PSLVERR)
+                        $display("[APB_SLAVE] Read from %02h", apb_if.PADDR);
 
-		if(apb_if.PADDR!=0 && apb_if.PADDR!=4 && apb_if.PADDR!=8 && apb_if.PADDR!=12) begin
-			$display("[APB_SLAVE] ERROR: addr isn't in range");
-			apb_if.PSLVERR <= 1;
-		end
+                    apb_if.PREADY <= 1'b1;
+                end // valid address
+            end // READ
 
-		apb_if.PRDATA[7:0] <= memory[apb_if.PADDR][7:0]; 
-		apb_if.PRDATA[15:8] <= memory[apb_if.PADDR+1][7:0]; 
-		apb_if.PRDATA[23:16] <= memory[apb_if.PADDR+2][7:0]; 
-		apb_if.PRDATA[31:24] <= memory[apb_if.PADDR+3][7:0]; 
+            if (!apb_if.PSEL)
+                apb_if.PREADY <= 1'b0;
 
-		$display("[APB_SLAVE] Read from %02h", apb_if.PADDR);
-		apb_if.PREADY <= 1'b1;
+        end // else reset
+    end // always_ff
 
-            end // PSEL && PENABLE && !PWRITE
-	    if (!apb_if.PSEL) apb_if.PREADY <= 1'b0;
-    end //always
-endmodule 
+endmodule
 

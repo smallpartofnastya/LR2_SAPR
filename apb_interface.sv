@@ -18,7 +18,7 @@ interface apb_interface;
         output PENABLE, 
         output PWRITE,  
         output PADDR,  
-        output PWDATA,  
+        output PWDATA, 
         input  PRDATA, 
         input  PSLVERR, 
         input  PREADY,  
@@ -33,7 +33,7 @@ interface apb_interface;
         input  PENABLE, 
         input  PWRITE,  
         input  PADDR,  
-        input  PWDATA,  
+        input  PWDATA,   
         output PRDATA, 
         output PSLVERR, 
         output PREADY 

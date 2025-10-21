@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 `include "apb_interface.sv"
 `include "apb_master.sv"
+`include "apb_slave.sv"
 
 module tb_apb();
     logic clk, reset, rdata;
@@ -16,25 +17,60 @@ module tb_apb();
     assign apb_if.PCLK = clk;
     assign apb_if.PRESETn = reset;
 
-    apb_slave apb_slave (apb_if.slave_mp);
-    apb_master apb_master (apb_if.master_mp);
+    apb_slave slave (apb_if.slave_mp);
+    apb_master master (apb_if.master_mp);
     
-   initial begin
+    initial begin
 	@(posedge reset);
 
-	$display("\n\t=====[TEST] test 1. Write and Read nomer po spisku =====");
-	apb_master.write('h0, 17);
-	apb_master.read('h0);
-	$display("\n\t=====[TEST] test 2. Write and Read date =====");
-	apb_master.write('h4, 32'd19102025);
-	apb_master.read('h4);
-	$display("\n\t=====[TEST] test 3. Write and Read Familiya =====");
-	apb_master.write('h8, "Tsyb");
-	apb_master.read('h8);
-	$display("\n\t=====[TEST] test 4. Write and Read Name =====");
-	apb_master.write('hC, "Anas");
-	apb_master.read('hC);
-	#15;
+        $display("\n=====[TEST 1] Write/read operands=====");
+        master.write('h0, 32'hAAAAAAAA);
+        master.read('h0);
+        master.write('h4, 32'h0F0F0F0F);
+        master.read('h4);
+
+        $display("\n=====[TEST 2] AND operation (control=01)=====");
+        master.write('h8, 32'd1);
+        master.read('h8);
+        master.read('hC);
+
+        $display("\n=====[TEST 3] OR operation (control=10)=====");
+        master.write('h8, 32'd2); 
+        master.read('h8);
+        master.read('hC);
+
+        $display("\n=====[TEST 4] XOR operation (control=11)=====");
+        master.write('h8, 32'd3); 
+        master.read('h8);
+        master.read('hC);
+
+        $display("\n=====[TEST 5] Attempt to write read-only register=====");
+        master.write('hC, 32'hDEAD_BEEF);
+
+        $display("\n=====[TEST 6] Invalid address check=====");
+        master.write('h10, 32'h12345678);
+        master.read('h14);
+
+        $display("\n=====[TEST 7] Consecutive operations=====");
+        master.write('h0, 32'h12345678);
+        master.write('h4, 32'hFFFFFFFF);
+        master.write('h8, 32'd1); 
+        master.read('hC);
+        master.write('h8, 32'd2); 
+        master.read('hC);
+        master.write('h8, 32'd3); 
+        master.read('hC);
+
+        $display("\n=====[TEST 8] Reset behavior after activity=====");
+        reset = 0; #10; reset = 1;
+        master.read('h0);
+        master.read('h4);
+        master.read('h8);
+        master.read('hC);
+
+        $display("\n====[TEST COMPLETED SUCCESSFULLY]====\n");
+        #50;
+        $finish;
     end
 
 endmodule
