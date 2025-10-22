@@ -48,8 +48,8 @@ module tb_apb();
         master.write('hC, 32'hDEAD_BEEF);
 
         $display("\n=====[TEST 6] Invalid address check=====");
-        master.write('h10, 32'h12345678);
-        master.read('h14);
+        master.write('hFFFFFFFF, 32'h12345678);
+        master.read('h10000000);
 
         $display("\n=====[TEST 7] Consecutive operations=====");
         master.write('h0, 32'h12345678);

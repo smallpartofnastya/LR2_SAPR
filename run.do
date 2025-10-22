@@ -12,4 +12,7 @@ vsim test
 
 add wave -r *
 
-run 1000ns
+vlog *.sv +cover=bcesft
+vsim -coverage tb_apb -do "run -all; coverage save apb_coverage.ucdb; coverage report -detail"
+
+run 2000ns
