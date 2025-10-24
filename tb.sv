@@ -4,7 +4,7 @@
 `include "apb_slave.sv"
 
 module tb_apb();
-    logic clk, reset, rdata;
+    logic clk, reset;
     apb_interface apb_if();
 
     initial begin
