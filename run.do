@@ -15,4 +15,4 @@ add wave -r *
 vlog *.sv +cover=bcesft
 vsim -coverage tb_apb -do "run -all; coverage save apb_coverage.ucdb; coverage report -detail"
 
-run 2000ns
+run 1500ns
